@@ -1,0 +1,538 @@
+% clear;close all;delete(gcp('nocreate')); clc;
+Estar_data = Estar_data_func();
+try load ('NeutronsYield_params.mat');end
+[Ne_vec,a0_vec] = N0andA0 ();
+markersize = 30;
+box_linewidth = 2.5;
+a0_ELI =  13.0;%8.58;%
+%% Pukhove scaling
+if true
+% 
+% Data_points_Teff  = [2, 2.57, 9, 10.5]; % [Itamar, Tamir, ELI, Ishay]
+% Data_points_a0    = [3.9, 4.3 , a0_ELI, 20]; % [Itamar, Tamir, ELI, Ishay]
+
+ Data_points_Teff  = [2, 2.57, 8.1, 10.5]; % [Itamar, Tamir, ELI, Ishay]
+ Data_points_a0    = [3.6, 4.2 , a0_ELI, 20]; % [Itamar, Tamir, ELI, Ishay]
+f = @ (a,b,x) a.*x+b;
+
+Errors = [0.13,0.18,0.59];
+Error_pom = 0.1;
+weights = 1./(Errors./Data_points_Teff(1:3)).^2;
+weights =weights/sum(weights);
+
+%{
+vals = fit(Data_points_a0(1:3)',Data_points_Teff(1:3)',f,'StartPoint',[1 0],"Weights",weights);
+alpha_T = vals.a; beta_T = vals.b;
+ci = confint(vals);
+alpha_T_err = abs(diff(ci(:,1)))/2; 
+beta_T_err = abs(diff(ci(:,2)))/2;
+
+
+mdl = fitlm(Data_points_a0(1:3)', Data_points_Teff(1:3)',"Weights",weights);
+cov_mat = mdl.CoefficientCovariance;
+cov_ab = cov_mat(1,2);
+sigma_b = sqrt(cov_mat(1,1));
+sigma_a = sqrt(cov_mat(2,2));
+%}
+mdl = fitlm(Data_points_a0(1:3)', Data_points_Teff(1:3)',"Weights",weights);
+cov_mat = mdl.CoefficientCovariance;
+cov_ab = cov_mat(1,2);
+sigma_b = sqrt(cov_mat(1,1));
+sigma_a = sqrt(cov_mat(2,2));
+alpha_T = mdl.Coefficients.Estimate(2);
+beta_T = mdl.Coefficients.Estimate(1);
+eqn = @(x) abs(alpha_T.*x+beta_T);
+x = fminsearch(eqn,3);
+% 
+a0_vec = logspace(log10(x+0.05),log10(45),1001);
+E_eff = alpha_T*a0_vec+beta_T;
+
+% a0_vec = logspace(log10(2.22+0.05),log10(45),50);
+% E_eff = (2.92 - 0.48)/(4.5 - 2.6)*(a0_vec-2.6)+0.48;
+
+
+% 
+% fig1 = figure; hold on
+% fig1.WindowState="maximized";
+% plt1 = plot (a0_vec, E_eff);
+% plt1.LineWidth = 4;
+% plt1.Color = [0.5,0.5,0.5];
+% 
+% ax1 = gca;
+% ax1.Color = [1 1 1];
+% ax1.FontName = 'Times New Roman';
+% ax1.FontSize = 50; ax1.YLabel.FontSize = 60; ax1.XLabel.FontSize = 60;
+% ax1.XLabel.String = "$a_0$"; ax1.XLabel.Interpreter = "latex";
+% ax1.YLabel.String = "$T_{eff}$ (MeV)"; ax1.YLabel.Interpreter = "latex";
+% ax1.Box = "on";
+% ax1.YMinorTick = "on";
+% ax1.XMinorTick = "on";
+% 
+% 
+% Col = [0.2,0.2,0.2];
+% plot (Data_points_a0([1,4]),Data_points_Teff([1,4]),Marker="square",...
+%     LineStyle="none",Color="black",MarkerSize=20,MarkerFaceColor=Col)
+% 
+% Col = [0.7,0,0];
+% plot (Data_points_a0([2,3]),Data_points_Teff([2,3]),Marker="square",...
+%     LineStyle="none",Color="black",MarkerSize=20,MarkerFaceColor=Col)
+% 
+% ax1.XLim = [2,22];
+% ax1.YLim = [0,20];
+fig1 = figure; hold on
+fig1.WindowState="maximized";
+
+ax1 = gca;
+ax1.Color = [1 1 1];
+ax1.FontName = 'Times New Roman';
+ax1.FontSize = 60; ax1.YLabel.FontSize = 60; ax1.XLabel.FontSize = 70;
+ax1.XLabel.String = "$a_0$"; ax1.XLabel.Interpreter = "latex";
+ax1.YLabel.String = "$T_{e}$ (MeV)"; ax1.YLabel.Interpreter = "latex";
+ax1.Box = "on";
+ax1.LineWidth = box_linewidth;
+ax1.YMinorTick = "on";
+ax1.XMinorTick = "on";
+%{
+% Calculate the 95% prediction intervals on the finer x-range
+[y_ci,y_fit] = predint(vals, a0_vec,0.95);
+lower_bound = y_ci(:, 1);
+upper_bound = y_ci(:, 2);
+
+% Use the fill function to create the shaded error region
+% The polygon vertices are the x_fine vector (forward), then flip the x_fine vector (backward)
+% and similarly for the y-bounds
+x_fill = [a0_vec, fliplr(a0_vec)];
+y_fill = [lower_bound', fliplr(upper_bound')];
+
+ fill(x_fill, y_fill, [0.2, 0.2, 0.2], 'EdgeColor', 'none', 'FaceAlpha', 0.5);
+%}
+
+[~, y_ci] = predict(mdl, a0_vec', 'Prediction', 'curve');
+
+
+hold on;
+% grid on;
+
+% Plot the original data points
+% scatter(a0_vec, y_data, 'filled', 'DisplayName', 'Original Data');
+
+% Plot the fitted line
+% plot(a0_vec, y_pred, 'r-', 'LineWidth', 2, 'DisplayName', 'Fitted Line (y = ax+b)');
+
+% Plot the confidence bounds (uncertainty band)
+% The 'fill' function is excellent for this.
+% fill([a0_vec, fliplr(a0_vec)], [y_ci(:,1)', fliplr(y_ci(:,2)')], 'r', ...
+%      'FaceAlpha', 0.2, 'EdgeColor', 'none', 'DisplayName', '95% Confidence Bounds');
+
+% Add titles and labels
+% Plot the fit 
+plt1 = plot (a0_vec, E_eff);
+plt1.LineWidth = 4;
+plt1.Color = [0,0,0];
+
+
+% Plot the original data points with error bars on top
+edge_col = [0.1,0.1,0.1];
+linewidth = 2.5;
+
+Col = [0.5,0.5,0.5];
+errorbar (Data_points_a0([4]),Data_points_Teff([4]),Error_pom,Marker="square",...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,MarkerEdgeColor=edge_col,LineWidth=linewidth)
+
+errorbar (Data_points_a0([1]),Data_points_Teff([1]),Errors(1),Marker="square",...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,MarkerEdgeColor=edge_col,LineWidth=linewidth)
+
+Col = [0.7,0,0];
+errorbar (Data_points_a0([2,3]),Data_points_Teff([2,3]),Errors([2,3]),Marker="square",...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,MarkerEdgeColor=edge_col,LineWidth=linewidth)
+
+ax1.XLim = [2,22];
+ax1.YLim = [0,13];
+% print(fig1, '20251123 - Electrons_raw',"-dmeta","-bestfit")
+% exportgraphics(fig1, '20251125 - Electrons_raw.emf');
+% saveas(fig1, '20251125 - Electrons_raw.fig');
+
+
+
+end
+%% The energy that we used
+if false
+Data_points_Teff  = [2, 2.7, 8.86, 10.5]; % [Itamar, Tamir, ELI, Ishay]
+Data_points_a0    = [3.9, 4.3 , a0_ELI, 20]; % [Itamar, Tamir, ELI, Ishay]
+f = @ (a,b,x) a.*x+b;
+vals = fit(Data_points_a0(1:3)',Data_points_Teff(1:3)',f,'StartPoint',[1 0]);
+alpha_T = vals.a; beta_T = vals.b;
+eqn = @(x) abs(alpha_T.*x+beta_T);
+x = fminsearch(eqn,3);
+% 
+a0_vec = logspace(log10(x+0.05),log10(45),701);
+E_eff = alpha_T*a0_vec+beta_T;
+end
+%% Phononeutron generation
+if true
+%% Constants
+%Findlay
+b =  10^-24; % cm^2
+mb = b * 1e-3; % cm ^2
+
+alpha = 11*mb; % cm ^2
+beta = 0.83;
+Z = 29; % Atomic number
+
+
+% number of generated photons
+Ac = 6.2214076e23; % avugadro constant [1/mol]
+rho_cu = 8.935; % [g/cm^3]
+M = 63.546; % [g/mol]
+na = rho_cu/(M/Ac); % Ac*rho_cu/M; % Atoms / cm^3
+
+
+A = 63;  % Mass number  [dimentionles]
+sigma_0 = 2.5*A * mb; % [cm^2]
+
+E_r = 40.3/A^0.2; % [MeV]
+Gamma_r = 0.3*E_r; % [MeV]
+E_g_th = 8;% [MeV] photoneucear reactoion treshold
+mac = 3.103E-02; % X-ray_mass attenuation coefficients [cm^2/g]  for 10 MeV
+l_at = (mac*rho_cu)^-1; % [cm]
+
+
+
+%% Calculations
+Ne_vec = 45*1e10*ones(size(a0_vec));%linspace(1e8,1e10,length(a0_vec));
+Ne_vec(1) = 1;
+x_vec = linspace(0,3.15,501); dx = x_vec(2)-x_vec(1); % [cm]
+
+Eg_th = 8; % [MeV]
+Eg_vec= linspace(Eg_th,60,1001); dEg = Eg_vec(2) - Eg_vec(1); %[MeV]
+
+
+
+Relevant_range = [1:70];
+Ee_vec = Estar_data(Relevant_range,1);
+SP = Estar_data(Relevant_range,2); % stoping power MeV * cm^2/g
+SP_Cu = SP*rho_cu; % [MeV/cm]
+dSP_Cu = SP_Cu*dx;
+
+% dSP_Cu = interp1(Ee_vec,dSP_Cu,linspace(Ee_vec(1),Ee_vec(end),2001)) ;
+% Ee_vec_real = linspace(Ee_vec(1),Ee_vec(end),2001); dEe_real = diff(Ee_vec_real); dEe_real(end+1) = dEe_real(end);
+% dSP_Cu = interp(dSP_Cu,2);
+% Ee_vec_real = interp(Ee_vec,2); dEe_real = diff(Ee_vec_real); dEe_real(end+1) = dEe_real(end);
+Ee_vec_real = Ee_vec;
+dEe_real = diff(Ee_vec_real); dEe_real(end+1) = dEe_real(end);
+Param = alpha * Z^2 * na * dx * na * sigma_0 * l_at ;
+
+% figure; %hold on ;
+Nni = zeros(size(a0_vec));
+Delta_Nni = Nni;
+parfor a = 1:length(a0_vec)
+    T = E_eff(a);
+    % Delta_T =sqrt((a0_vec(a)*alpha_T_err).^2 + (beta_T_err).^2);
+    N = 0;
+    dNgidEg = 0;
+    Ee_vec = Ee_vec_real;
+    dEe = dEe_real;
+    Ne = Ne_vec(a);
+    Maxwelian = 2.*sqrt(Ee_vec./pi)*(T.^-3/2).*exp(-Ee_vec./T);
+    % Delta_Maxwellian = ((-3/2)*(T.^-5/2) + Ee_vec*T^-7/2)*  2.*sqrt(Ee_vec./pi)*(T.^-3/2).*exp(-Ee_vec./T)*Delta_T;
+    D_Maxwellian_Da = Maxwelian.*(-3/2*T^-1*a0_vec(a)+Ee_vec*a0_vec(a)/T^2);
+    D_Maxwellian_Db = Maxwelian.*(-3/2*T^-1+Ee_vec./T^2);
+    % sigma_maxwellian = sqrt((D_Maxwellian_Da*sigma_a).^2 + (D_Maxwellian_Db*sigma_b).^2+ D_Maxwellian_Da.*D_Maxwellian_Db.*cov_ab);
+    sigma_maxwellian = sqrt( (Maxwelian./T .* (-3/2+Ee_vec./T)).^2 .*...
+        ( (sigma_a*a0_vec(a)).^2 + sigma_b.^2 + 2.*cov_ab) );
+    dNedEe = Ne / sum(Maxwelian) * Maxwelian;
+    % Delta_dNedE = Ne / sum(Delta_Maxwellian)*Delta_Maxwellian;
+    % sigma_dNedEe =Ne*sqrt( ((1/sum(Maxwelian)-Maxwelian./(sum(Maxwelian)^2)).*sigma_maxwellian).^2+...
+    %                 ((-Maxwelian./sum(Maxwelian)^2)*sqrt(sum(sigma_maxwellian.^2))));
+    sigma_dNedEe= Ne*sqrt(((-sum(sigma_maxwellian)./sum(Maxwelian).^2 .* Maxwelian).^2 + (1./sum(Maxwelian).* sigma_maxwellian)).^2);
+
+    % disp(sum(dNedEe));
+    for xi =  1:length(x_vec)      
+        for Eg = Eg_vec
+            indx = find(Ee_vec>=Eg);
+            if isempty(indx)
+                break
+            end
+            dSgdEg = (1/Eg - beta./Ee_vec(indx));
+            dNgidEg= sum(dSgdEg .* dNedEe(indx) .* dEe(indx));
+            Delta_dNgidEg = sum(dSgdEg .* sigma_dNedEe(indx) .* dEe(indx));
+            sigma_n =  Eg.^2*Gamma_r.^2 ./ ( (Eg.^2-E_r.^2).^2 + (Gamma_r).^2*Eg.^2 ); % cm^2
+            % I change sigma_n to look like the one in Itamars paper - for
+            % Ne = 45e-10 I get exactly the same funtion of itamar but it
+            % is wrong since the units are incorect. Also, he did not
+            % recalculate the new dE after every step.
+            % sigma_n =  Eg.^2*Gamma_r.^2 ./ ( (Eg.^2-E_r).^2 + (Gamma_r).^2*Eg.^2 ); % cm^2
+            Nni(a) = Nni(a) + Param * sigma_n.*dNgidEg*dEg;
+            Delta_Nni(a) =  Delta_Nni(a) + Param * sigma_n.*Delta_dNgidEg*dEg;
+        end
+        Nni(a) = Nni(a);
+
+        x = x_vec(xi);
+        Ee_vec_new = Ee_vec-dSP_Cu;
+        Ee_vec = Ee_vec_new; Ee_vec(Ee_vec_new<0) = 0;  
+        dEe = diff(Ee_vec); dEe(end+1) = dEe(end);
+        % dNdE(Ee_vec_new<0)=0;
+        % plot(Ee_vec,dNdE)
+        % pause(0.1)
+        
+    end
+end
+% figure;
+% plot(a0_vec,Nni)
+%% Figure plot
+fig = figure; hold on
+fig.WindowState="maximized";
+% ax = gca;
+% ax.YScale = "log";
+Nni_upper = Nni + Delta_Nni;%*tinv(1-0.05/2,1);
+Nni_lower = Nni - Delta_Nni;%*tinv(1-0.05/2,1);
+Nni_lower(Nni_lower<=0) = 1e-100;
+Nni_upper(Nni_upper<=0) = 1e-100;
+
+fill([a0_vec fliplr(a0_vec)], [Nni_upper fliplr(Nni_lower)], 'r', ...
+     'FaceAlpha', 0.2, 'EdgeColor', 'none'); % shaded error area
+% plot(a0_vec, Nni_upper, "Color",[0 0.9 0]); % shaded error area
+% plot(a0_vec, Nni_lower,"Color" ,[0.9 0 0]); % shaded error area
+plt = plot(a0_vec,Nni);
+plt.LineWidth = 4;
+plt.Color = [0,0,0];
+
+
+
+
+
+ax4 = gca;
+ax4.Color = [1 1 1];
+ax4.FontName = 'Times New Roman';
+ax4.FontSize = 60; ax4.YLabel.FontSize = 70; ax4.XLabel.FontSize = 70;
+ax4.XLabel.String = "$a_0$"; ax4.XLabel.Interpreter = "latex";
+ax4.YLabel.String = "Neutrons"; ax4.XLabel.Interpreter = "latex";
+ax4.YLim = [7e2,1.2e10];
+
+
+
+Data_points_Neurons  = [2.32e5, 6.7e7, 9.13e7 , 1.2e9]; % [Itamar, ELI bubble, ELI Converter, Ishay]
+Data_points_a0_neutrons    = [3.9, a0_ELI , a0_ELI, 20]; % [Itamar,ELI bubble, ELI Converter, Ishay]
+
+
+Col = [0.5,0.5,0.5];
+plot (Data_points_a0_neutrons([1]),Data_points_Neurons([1]),Marker="square",...
+    LineWidth = 2, LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col)
+er1 = errorbar(Data_points_a0_neutrons([4]),Data_points_Neurons([4]),0.4*1e9,...
+   LineStyle="none",Color=Col,LineWidth=2) ;
+er1.Marker = "square"; er1.Color = [0 0 0];er1.MarkerFaceColor = Col; er1.MarkerSize = markersize;
+
+
+Col = [0.7,0,0];
+% plot (Data_points_a0_neutrons([3]),Data_points_Neurons([3]),Marker="square",...
+%     LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col)
+er3 = errorbar(Data_points_a0_neutrons([3]),Data_points_Neurons([3]),2.7e7,...
+   LineStyle="none",Color=Col,LineWidth=2) ;
+er3.Marker = "square"; er3.Color = [0 0 0];er3.MarkerFaceColor = Col; er3.MarkerSize = markersize;
+
+
+% Col = [0.5,0,0];
+% % plot (Data_points_a0_neutrons([2]),Data_points_Neurons([2]),Marker="square",...
+%     % LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col)
+% er2 = errorbar(Data_points_a0_neutrons([2]),Data_points_Neurons([2]),Data_points_Neurons([2]),...
+%    LineStyle="none",Color=Col,LineWidth=2) ;
+% er2.Marker = "square"; er2.Color = [0 0 0];er2.MarkerFaceColor = Col; er2.MarkerSize = markersize;
+
+
+ax4.YScale = "log";
+ax4.XLim = [2,22];
+ax4.YTick = [1e4,1e6,1e8,1e10];
+
+ax4.Box = "on";
+ax4.LineWidth = box_linewidth;
+ax4.YMinorTick = "on";
+ax4.XMinorTick = "on";
+
+% exportgraphics(fig, '20251125 - Neutrons_raw.emf');
+% saveas(fig,"20251125 - Neutrons_raw.fig")
+
+%% 
+
+% load('Nuetron_calculated_20.10.2023.mat','a0_plot','Nn');
+fig2 = figure; hold on
+fig2.WindowState="maximized";
+[~,a0_plot] = N0andA0();
+plt1 = semilogy(a0_plot,Nn_itamar);
+hold on; plt2 = semilogy(a0_vec,Nni);
+
+
+plt1.LineWidth = 4;
+plt1.Color = [0.1,0.5,0.8];
+plt2.LineWidth = 4;
+plt2.Color = [0.5,0.5,0.5];
+plt2.LineStyle = "--";
+
+ax4 = gca;
+ax4.Color = [1 1 1];
+ax4.FontName = 'Times New Roman';
+ax4.FontSize = 60; ax4.YLabel.FontSize = 70; ax4.XLabel.FontSize = 70;
+ax4.XLabel.String = "$a_0$"; ax4.XLabel.Interpreter = "latex";
+ax4.YLabel.String = "Neutrons"; ax4.XLabel.Interpreter = "latex";
+ax4.YLim = [1e4,1e10];
+ax4.YScale = "log";
+
+ax4.Box = "on";
+ax4.LineWidth = box_linewidth;
+ax4.YMinorTick = "on";
+ax4.XMinorTick = "on";
+
+
+
+fig3 = figure; hold on
+fig3.WindowState="maximized";
+plt3 = semilogy(a0_plot, Nni_func ());
+hold on; plt4 = semilogy(a0_vec,Nni);
+
+
+plt3.LineWidth = 4;
+plt3.Color = [0.1,0.5,0.8];
+plt4.LineWidth = 4;
+plt4.Color = [0.5,0.5,0.5];
+plt4.LineStyle = "--";
+
+ax4 = gca;
+ax4.Color = [1 1 1];
+ax4.FontName = 'Times New Roman';
+ax4.FontSize = 60; ax4.YLabel.FontSize = 70; ax4.XLabel.FontSize = 70;
+ax4.XLabel.String = "$a_0$"; ax4.XLabel.Interpreter = "latex";
+ax4.YLabel.String = "Neutrons"; ax4.XLabel.Interpreter = "latex";
+ax4.YLim = [1e4,1e10];
+ax4.YScale = "log";
+legend("Itamar's fit","My fit")
+
+ax4.Box = "on";
+ax4.LineWidth = box_linewidth;
+ax4.YMinorTick = "on";
+ax4.XMinorTick = "on";
+
+%%
+
+fig4 = figure; hold on
+yyaxis("left")
+fig4.WindowState="maximized";
+
+ax4 = gca;
+ax4.Color = [1 1 1];
+ax4.FontName = 'Times New Roman';
+ax4.FontSize = 60; ax4.YLabel.FontSize = 70; ax4.XLabel.FontSize = 70;
+ax4.XLabel.String = "$a_0$"; ax1.XLabel.Interpreter = "latex";
+ax4.YLabel.String = "$T_{eff}$ (MeV)"; ax4.YLabel.Interpreter = "latex";
+ax4.Box = "on";
+ax4.LineWidth = box_linewidth;
+ax4.YMinorTick = "on";
+ax4.XMinorTick = "on";
+hold on;
+
+plt41 = plot (a0_vec, E_eff);
+plt41.LineWidth = 4;
+plt41.Color = [0.7,0,0];
+ax4 = gca;
+ax4.YAxis(1).Color = [0.7,0,0];
+
+% Plot the original data points with error bars on top
+edge_col = [0.1,0.1,0.1];
+linewidth = 2;
+
+Col = [0.9,0,0];
+errorbar (Data_points_a0([4]),Data_points_Teff([4]),Error_pom,Marker="diamond",...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,MarkerEdgeColor=edge_col,LineWidth=linewidth)
+
+errorbar (Data_points_a0([1]),Data_points_Teff([1]),Errors(1),Marker="hexagram"   ,...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,MarkerEdgeColor=edge_col,LineWidth=linewidth)
+
+Col = [0.4,0,0];
+errorbar (Data_points_a0([2]),Data_points_Teff([2]),Errors([2]),Marker="square",...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,MarkerEdgeColor=edge_col,LineWidth=linewidth)
+
+Col = [0.4,0,0];
+errorbar (Data_points_a0([3]),Data_points_Teff([3]),Errors([3]),Marker="o",...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,MarkerEdgeColor=edge_col,LineWidth=linewidth)
+
+
+ax4.XLim = [2,22];
+ax4.YLim = [1,11];
+
+yyaxis("right")
+
+fill([a0_vec fliplr(a0_vec)], [Nni_upper fliplr(Nni_lower)], 'g', ...
+     'FaceAlpha', 0.2, 'EdgeColor', 'none'); % shaded error area
+% plot(a0_vec, Nni_upper, "Color",[0 0.9 0]); % shaded error area
+% plot(a0_vec, Nni_lower,"Color" ,[0.9 0 0]); % shaded error area
+plt42 = plot(a0_vec,Nni);
+plt42.LineWidth = 4;
+plt42.Color = [0,0.7,0];
+
+
+
+
+
+ax4 = gca;
+ax4.Color = [1 1 1];ax4.YAxis(2).Color = plt42.Color;
+ax4.FontName = 'Times New Roman';
+ax4.FontSize = 60; ax4.YLabel.FontSize = 70; ax4.XLabel.FontSize = 70;
+ax4.XLabel.String = "$a_0$"; ax4.XLabel.Interpreter = "latex";
+ax4.YLabel.String = "Neutrons"; ax4.XLabel.Interpreter = "latex";
+ax4.YLim = [1e4,1.5e10];
+
+
+
+Data_points_Neurons  = [2.32e5, 6.7e7, 9.13e7 , 1.2e9]; % [Itamar, ELI bubble, ELI Converter, Ishay]
+Data_points_a0_neutrons    = [3.9, a0_ELI , a0_ELI, 20]; % [Itamar,ELI bubble, ELI Converter, Ishay]
+
+
+Col = [0,0.9,0];
+errorbar(Data_points_a0_neutrons([4]),Data_points_Neurons([4]),0.4*1e9,...
+   LineStyle="none",Color=edge_col,LineWidth=linewidth) 
+plot (Data_points_a0_neutrons(4),Data_points_Neurons(4),Marker="diamond",...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,LineWidth=linewidth)
+plot (Data_points_a0_neutrons([1]),Data_points_Neurons([1]),Marker="hexagram",...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,LineWidth=linewidth)
+
+
+Col = [0,0.55,0];
+errorbar(Data_points_a0_neutrons([2]),Data_points_Neurons([2]),Data_points_Neurons([2])-1,...
+   LineStyle="none",Color=Col,LineWidth=linewidth) 
+plot (Data_points_a0_neutrons([2]),Data_points_Neurons([2]),Marker="o",...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,LineWidth=linewidth)
+
+Col = [0,0.35,0];
+errorbar(Data_points_a0_neutrons([3]),Data_points_Neurons([3]),2.7e7,...
+   LineStyle="none",Color=Col,LineWidth=linewidth) 
+plot (Data_points_a0_neutrons([3]),Data_points_Neurons([3]),Marker="o",...
+    LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,LineWidth=linewidth)
+
+
+ax4.YScale = "log";
+ax4.XLim = [2,22];
+ax4.YTick = [1e4,1e6,1e8,1e10];
+ax4.YLim = [1e4,1e10];
+ax4.Box = "on";
+ax4.LineWidth = box_linewidth;
+ax4.YMinorTick = "on";
+ax4.XMinorTick = "on";
+
+end
+%% Functions
+function [Ne_vec,a0_vec] = N0andA0 ()
+Ne_vec  = [1	309328571803.228	243007616181.661	198578853425.108	167074901734.269	143760507721.891	125923814790.712	111910800022.181	100660651820.311	91464547564.7545	83832509721.6216	77415697428.7993	71960047876.3911	67276126482.7751	63220234674.4906	59681536523.9285	56573294319.8395	53826743536.9937	51386729568.5886	49208546067.8189	47260604908.4596	45497703676.5737	43909706864.3740	42470543204.6692	41162427794.9310	39970254877.6080	38881119146.3634	37883935139.3064	36969132206.1187	36128408226.7611	35354529383.1207	34641166312.4665	33982759212.6163	33375006150.6079	32811770042.2333	32291000900.4287	31808670348.5003	31361716386.0116	30947396500.2915	30563247728.6689	30207052504.9143	29876809341.9961	29570707576.9659	29287106041.1071	29024511629.4828	28781567833.7734	28607035375.2602	28349782134.3401	28158771621.9419	27983053278.1599	27821753917.0098	27674070163.5187	27539261752.4795	27416646077.3498	27306090393.8820	27206012096.6138	27115869497.7727	27036160547.8183	26965918945.0645	26904711088.7998	26852133336.3004	26807809529.2298	26771388759.2988	26742543346.8318	26720967009.1266	26706373198.3080	26698493590.8067	26697076712.7084	26701886687.0634	26712702090.8650	26729314910.8315	26751529588.4212	26779162145.6501	26812039384.4291	26849998153.1903	26892884675.7182	26940603938.3301	26992869132.9704	27049701160.4625	27110928160.1962	27176435174.9856	27246113782.7817	27319861880.3925	27397583528.3373	27479188910.3650	27564595025.8505	27653722942.9760	27746504245.1908	27842875706.9242	27942783237.5615	28046182533.4036	28153040676.4277	28263338115.0335	28377071060.5624	28494254283.9772	28614925024.7898	28739143629.3812	28867003668.8526	28998630388.2686	29134188460.6163];
+a0_vec = [3.88279506131436	2.70000000000000	2.77863568272595	2.85956157678502	2.94285038303899	3.02860275097103	3.11675730525709	3.20753076399412	3.30094793862048	3.39708582608206	3.49602366379439	3.59784299995312	3.70262776074649	3.81046429702545	3.92150150498821	4.03565084943808	4.15318646417480	4.27414522458168	4.39862682747236	4.52673387326310	4.65857195053819	4.79424972307839	4.93387901942394	5.07757492504603	5.22546087720277	5.37764376260765	5.53426401764123	5.69600573223860	5.86132176078794	6.03202880687789	6.20770758593399	6.38850289118695	6.57456373801851	6.76604348178309	6.96309995020661	7.16589604346651	7.37459742806035	7.58937761457316	7.81041312945724	8.03788615494117	8.27198417918831	8.51290015082860	8.76083263799092	9.01598599196730	9.27857051564359	9.54880263683564	9.82690508667377	10.1131070831826	10.4076505202073	10.7107601618427	11.0227038425243	11.3437326729476	11.6741112519839	12.0141118847685	12.3640148071406	12.7241084166196	13.0946895101085	13.4760635285202	13.8686008085290	14.2724568416527	14.6881325408824	15.1159145150760	15.6061603513422	16.0092179056548	16.4754756019213	16.9603127397702	17.5091248112975	17.9573188270408	18.4803136515052	19.0185403481012	19.5725025350360	20.1424767503534	20.7291128285222	21.3328342876237	21.9541387278782	22.5935382417770	23.2516098361611	23.9287458665907	24.6256600843667	25.3428600965710	26.0809538395052	26.8406000659176	27.6222568464211	28.4267364860137	29.2546460526282	30.1066679286484	30.9835043683420	31.8858780791743	32.8145328169789	33.7702339989775	34.7537693346534	35.7659494749981	36.8076086806679	37.8796060095990	38.9828235246498	40.1181720218521	41.2865867798726	42.4890308313021	43.7264952564071	45];
+end
+
+function [Nn] = Nn_itamar()
+Nn = [41617.8708952090	0	0.846025071517812	95.7001510627290	607.878701236003	1927.49312901168	5194.33390142907	12005.3061867152	24960.1151576916	47991.0950205078	86595.9948512700	147800.529079509	240517.099806387	375971.576020501	567931.499466187	832891.940651337	1190194.45061121	1662150.37842387	2274057.10099767	3054282.91457929	4034217.12123867	5248278.95903229	6733877.01648964	8531361.48583514	10683992.8762256	13237896.5096050	16242030.1030977	19748153.5685153	23810804.3083113	28487318.4791607	33837818.2502656	39925223.0841294	46815311.8993923	54576732.8319403	63281094.6888151	73003031.8258002	83820272.1824860	95813743.2856702	109067674.606763	123669721.594146	139711072.454707	157286610.576796	176495049.688013	197439072.288621	220226018.694076	250966048.893249	271774828.956019	300773706.931842	332087432.666294	365846340.950389	402186096.911863	501247891.585619	483178683.401617	528131456.770531	576265453.945179	627746432.258316	682746957.170033	741506649.959058	804032500.500380	870699173.256216	941649240.562250	1017093657.56529	1097251928.79816	1182352452.38585	1272633261.45642	1368341703.66036	1469735250.07971	1577082085.98198	1690660966.68643	1810762081.08035	1937687316.20868	2071750706.42212	2213278922.38632	2362611731.13859	2520102508.66093	2686118822.53617	2861042763.50317	3045271761.99228	3239218931.23518	3503313779.52361	3658002817.97803	3883750175.85896	4121038274.01580	4370368549.01406	4632262150.90012	4907260801.27831	5195927567.61673	5498847905.26494	5816630508.20289	6149908323.01773	6499340227.45280	6865611916.97252	7249437596.47539	7651561825.03474	8072761401.46296	8513847560.16602	8975668604.50545	9459112677.49415	9965112213.57498	10494650662.4728];
+end
+function [Estar_data] = Estar_data_func()
+Estar_data = [0.0100000000000000	0.0125000000000000	0.0150000000000000	0.0175000000000000	0.0200000000000000	0.0250000000000000	0.0300000000000000	0.0350000000000000	0.0400000000000000	0.0450000000000000	0.0500000000000000	0.0550000000000000	0.0600000000000000	0.0700000000000000	0.0800000000000000	0.0900000000000000	0.100000000000000	0.125000000000000	0.150000000000000	0.175000000000000	0.200000000000000	0.250000000000000	0.300000000000000	0.350000000000000	0.400000000000000	0.450000000000000	0.500000000000000	0.550000000000000	0.600000000000000	0.700000000000000	0.800000000000000	0.900000000000000	1	1.25000000000000	1.50000000000000	1.75000000000000	2	2.50000000000000	3	3.50000000000000	4	4.50000000000000	5	5.50000000000000	6	7	8	9	10	12.5000000000000	15	17.5000000000000	20	25	30	35	40	45	50	55	60	70	80	90	100	125	150	175	200	250	300	350	400	450	500	550	600	700	800	900	1000
+13.1900000000000	11.2800000000000	9.91700000000000	8.88700000000000	8.08000000000000	6.89200000000000	6.05500000000000	5.43100000000000	4.94700000000000	4.56000000000000	4.24200000000000	3.97700000000000	3.75300000000000	3.39200000000000	3.11400000000000	2.89400000000000	2.71500000000000	2.38700000000000	2.16400000000000	2.00200000000000	1.88100000000000	1.71100000000000	1.60100000000000	1.52400000000000	1.46900000000000	1.42800000000000	1.39800000000000	1.37500000000000	1.35700000000000	1.33300000000000	1.31900000000000	1.31200000000000	1.30900000000000	1.31300000000000	1.32700000000000	1.34400000000000	1.36400000000000	1.40500000000000	1.44800000000000	1.49000000000000	1.53100000000000	1.57300000000000	1.61300000000000	1.65300000000000	1.69300000000000	1.77100000000000	1.84900000000000	1.92500000000000	2.00100000000000	2.19000000000000	2.37700000000000	2.56300000000000	2.74900000000000	3.12000000000000	3.49100000000000	3.86100000000000	4.23300000000000	4.60500000000000	4.97800000000000	5.35100000000000	5.72500000000000	6.47600000000000	7.22900000000000	7.98300000000000	8.74000000000000	10.6400000000000	12.5400000000000	14.4500000000000	16.3700000000000	20.2000000000000	24.0400000000000	27.8900000000000	31.7400000000000	35.6000000000000	39.4600000000000	43.3200000000000	47.1800000000000	54.9100000000000	62.6500000000000	70.3900000000000	78.1300000000000]';
+end
+function [Nni] = Nni_func ()
+
+Nni = [2.41366967495217e-07	0.222899209428322	2.14568792212152	12.8422913908303	60.5742409706227	190.977622433841	603.881499242036	1412.19904266386	3254.88203437235	6914.45497919203	13726.0572060963	25720.5197056176	45845.4254975993	78206.2968659666	128320.026001906	203373.831265114	312484.674174228	466960.687049282	680527.476826314	969623.139257346	1353586.50924865	1854913.68823076	2499478.30409692	3316751.30157649	4340016.31407301	5606581.78849184	7157990.97770870	9040230.65705976	11303938.9733262	14004612.2476137	17202809.9093282	20964356.1346870	25360536.2950811	30468286.0538454	36370370.9484880	43160604.4800810	50918753.1833326	59761177.6395225	69790458.9518614	81120760.6615690	93872876.3886603	108174313.577905	124159363.598482	141969158.106680	161751711.090587	183661945.451171	207861702.435397	234519731.821243	263811660.603374	295919937.614173	331033753.326641	369348932.039212	411067798.203483	456399017.167099	506057413.470576	608763770.940408	616250620.281807	678232021.051260	750963345.699893	816681073.710386	893632603.601294	976070089.693466	1064250308.99256	1158434561.36338	1258888603.41185	1365882613.24907	1479691179.72786	1600593305.96638	1728872413.20562	1864816327.47398	2008717228.35212	2160871536.54173	2321579715.11101	2491145958.36393	2669877742.37774	2858085212.43403	3056080384.87424	3264176150.29238	3482685021.39517	3711917742.16763	3952181545.03560	4203778269.31814	5067002225.18746	4742137862.36570	5029457261.63176	5329217479.65973	5641657783.51001	5966996816.06087	6305429737.60047	6657125391.58635	7022223600.10399	7400832246.76850	7793025371.73484	8198840365.12291	8618276261.62453	9051291998.47178	9497805061.43750	9957690489.30913	10430780256.5270	10916863046.5704];
+end
+
+

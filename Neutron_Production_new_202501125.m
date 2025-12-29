@@ -1,10 +1,10 @@
 clear;close all;delete(gcp('nocreate')); clc;
 Estar_data = Estar_data_func();
-try load ('NeutronsYield_params.mat');end
+% try load ('NeutronsYield_params.mat');end
 [Ne_vec,a0_vec] = N0andA0 ();
 markersize = 30;
 box_linewidth = 2.5;
-a0_ELI =  13.0;%8.58;%
+a0_ELI = 13;
 %% Pukhove scaling
 if true
 % 
@@ -12,7 +12,7 @@ if true
 % Data_points_a0    = [3.9, 4.3 , a0_ELI, 20]; % [Itamar, Tamir, ELI, Ishay]
 
  Data_points_Teff  = [2, 2.57, 8.1, 10.5]; % [Itamar, Tamir, ELI, Ishay]
- Data_points_a0    = [3.9, 4.2 , a0_ELI, 25]; % [Itamar, Tamir, ELI, Ishay]
+ Data_points_a0    = [3.64, 3.87 , a0_ELI, 25]; % [Itamar, Tamir, ELI, Ishay]
 f = @ (a,b,x) a.*x+b;
 
 Errors = [0.13,0.18,0.59];
@@ -77,7 +77,7 @@ E_eff = alpha_T*a0_vec+beta_T;
 % plot (Data_points_a0([2,3]),Data_points_Teff([2,3]),Marker="square",...
 %     LineStyle="none",Color="black",MarkerSize=20,MarkerFaceColor=Col)
 % 
-% ax1.XLim = [2,27];
+% ax1.XLim = [2,15];
 % ax1.YLim = [0,20];
 fig1 = figure; hold on
 fig1.WindowState="maximized";
@@ -146,8 +146,8 @@ Col = [0.7,0,0];
 errorbar (Data_points_a0([2,3]),Data_points_Teff([2,3]),Errors([2,3]),Marker="square",...
     LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,MarkerEdgeColor=edge_col,LineWidth=linewidth)
 
-ax1.XLim = [2,27];
-ax1.YLim = [0,13];
+ax1.XLim = [2,15];
+ax1.YLim = [0,9.9];
 % print(fig1, '20251123 - Electrons_raw',"-dmeta","-bestfit")
 % exportgraphics(fig1, '20251125 - Electrons_raw.emf');
 % saveas(fig1, '20251125 - Electrons_raw.fig');
@@ -307,12 +307,12 @@ ax4.FontName = 'Times New Roman';
 ax4.FontSize = 60; ax4.YLabel.FontSize = 70; ax4.XLabel.FontSize = 70;
 ax4.XLabel.String = "$a_0$"; ax4.XLabel.Interpreter = "latex";
 ax4.YLabel.String = "Neutrons"; ax4.XLabel.Interpreter = "latex";
-ax4.YLim = [7e2,1.2e10];
+ax4.YLim = [7e2,1e9];
 
 
 
 Data_points_Neurons  = [2.32e5, 6.7e7, 9.13e7 , 1.2e9]; % [Itamar, ELI bubble, ELI Converter, Ishay]
-Data_points_a0_neutrons    = [3.9, a0_ELI , a0_ELI, 25]; % [Itamar,ELI bubble, ELI Converter, Ishay]
+Data_points_a0_neutrons    = [3.64, a0_ELI , a0_ELI, 25]; % [Itamar,ELI bubble, ELI Converter, Ishay]
 
 
 Col = [0.5,0.5,0.5];
@@ -340,7 +340,7 @@ er3.Marker = "square"; er3.Color = [0 0 0];er3.MarkerFaceColor = Col; er3.Marker
 
 
 ax4.YScale = "log";
-ax4.XLim = [2,27];
+ax4.XLim = [2,15];
 ax4.YTick = [1e4,1e6,1e8,1e10];
 
 ax4.Box = "on";
@@ -454,7 +454,7 @@ errorbar (Data_points_a0([3]),Data_points_Teff([3]),Errors([3]),Marker="o",...
     LineStyle="none",Color="black",MarkerSize=markersize,MarkerFaceColor=Col,MarkerEdgeColor=edge_col,LineWidth=linewidth)
 
 
-ax4.XLim = [2,27];
+ax4.XLim = [2,15];
 ax4.YLim = [1,11];
 
 yyaxis("right")
@@ -508,7 +508,7 @@ plot (Data_points_a0_neutrons([3]),Data_points_Neurons([3]),Marker="o",...
 
 
 ax4.YScale = "log";
-ax4.XLim = [2,27];
+ax4.XLim = [2,15];
 ax4.YTick = [1e4,1e6,1e8,1e10];
 ax4.YLim = [1e4,1e10];
 ax4.Box = "on";
